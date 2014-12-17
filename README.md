@@ -18,13 +18,15 @@ MQTT is a popular publish/subscribe protocol that has seen major adoption within
 
 ### 1.1 Goals
 
-MQTT is currently used mostly in constrained environments were data size must be kept at a minimum. It's more acceptable to put metadata in an external resource directory that can be queried on an as-needed basis than to include metadata in every message as HTTP does.
+MQTT is currently used mostly in constrained environments were data size must be kept at a minimum so users tend to feel constrained on the amount of data they are sending as well as the simplicity. 
 
-* *No libraries*. While this spec may be implemented by clients, this spec should be simple enough that anyone could query the resource directory and parse the results without the use of any external libraries.
+* *No libraries*. While this spec may be implemented by clients, this spec should be simple enough that anyone could query the resource directory and parse the results without the use of any external libraries. More importantly, many of the embedded engineers that we have talked with have been aprehensive about including any external dependencies.
 * *Extensibility*. This spec doesn't presume to understand all goals that other people may have. We only want to standardize methods to communicate metadata.
 * *No inflated messages*. Metadata must not be communicated through topic names or through a payload envelope. Use of an external Resource Directory lets the client query metadata only when needed and never more. Its hard to rationalize the inflation messages in hot topics that see high message throughput. 
 * *Determinism*. A single GET request should return only a single message. If there are many messages returned, it becomes difficult for the client to know when they have a full listing and to stop listening. This helps achieve the goal of requiring no libraries to query the resource directory.
 * *Zero coordination*. MQTT does not have constructs for ACID transactions, so no part of this spec can assume that the client can GET the value of a topic and then PUT to update it. PUT should operate only as "add" or "replace" and never as "PATCH" or "update one or more properties".
+
+*Note: I'm not sure that I can have both Determinism and Zero Coordination. If not, than I choose Zero Coordination.*
  
 
 ### 1.2 Web Linking
@@ -45,6 +47,13 @@ These are some additional terms used within this specification:
 * **PUT Request** - A PUBLISH message with the retained option set to `true` to a Resource Directory topic.
 * **GET Request** - A SUBSCRIBE message sent to a Resource Directory topic. Each topic pattern MUST NOT contain any wildcards, but a singe GET request MAY contain multiple topic patterns.
 * **DELETE Request** - A PUBLISH message with the retained option set to `true` and an empty (zero byte) payload to a Resource Directory topic.
+ 
+
+### 2.1 Anotomy of a GET request
+
+A GET request is a SUBSCRIBE message sent to a Resource Directory topic. Each topic pattern MUST NOT contain any wildcards, so it will only retrieve a single PUBLISH message. However, a SUBSCRIBE message MAY contain many topic subscriptions, but the client will still know exactly how many PUBLISH messages to listen for.
+
+When the client receives all expected messages, it SHOULD send a UNSUBSCRIBE message to terminate the GET request. If the client has not received one (1) or more expected messages after thirty (30) seconds, it MAY send an UNSUBSCRIBE message to terminate the request.
 
 
 3. Simple Directory Discovery
